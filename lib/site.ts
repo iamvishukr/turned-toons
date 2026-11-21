@@ -29,8 +29,8 @@ export const SITE = {
 export const CONTACT = {
   email: "turnedtoons@gmail.com",
   // Free access key from https://web3forms.com (sent to the email above).
-  // It's safe to be public. Until it's set, the form falls back to opening the email app.
-  web3formsKey: process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? "",
+  // It's safe to be public. NEXT_PUBLIC_WEB3FORMS_KEY in Vercel overrides it if set.
+  web3formsKey: process.env.NEXT_PUBLIC_WEB3FORMS_KEY || "2b6d1178-8c20-4f22-a3e3-6b4c2e5dd9cd",
   instagram: "https://www.instagram.com/turnedtoons/",
   instagramHandle: "@turnedtoons",
   facebook: "https://www.facebook.com/share/1EUBxQfkQZ/",

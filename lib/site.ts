@@ -28,6 +28,9 @@ export const SITE = {
 
 export const CONTACT = {
   email: "turnedtoons@gmail.com",
+  // Free access key from https://web3forms.com (sent to the email above).
+  // It's safe to be public. Until it's set, the form falls back to opening the email app.
+  web3formsKey: process.env.NEXT_PUBLIC_WEB3FORMS_KEY ?? "",
   instagram: "https://www.instagram.com/turnedtoons/",
   instagramHandle: "@turnedtoons",
   facebook: "https://www.facebook.com/share/1EUBxQfkQZ/",

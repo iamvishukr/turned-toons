@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { ADDRESS_LINES, CONTACT, FAQS, SITE } from "@/lib/site";
 import { Reveal, SplitHeading } from "./Reveal";
@@ -131,10 +131,44 @@ export function Faq() {
 
 /* ───────── Contact ───────── */
 export function Contact() {
-  const [form, setForm] = useState({ name: "", type: "Family toon", people: "", idea: "" });
-  const [sent, setSent] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", type: "Family toon", people: "", idea: "" });
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error" | "mailto">("idle");
+  const subject = `TurnedToons request — ${form.type}`;
   const message = `Hi TurnedToons! I'm ${form.name || "…"} and I'd love a ${form.type.toLowerCase()}.${form.people ? `\nPeople/pets: ${form.people}` : ""}${form.idea ? `\nIdea: ${form.idea}` : ""}`;
-  const mailHref = `mailto:${CONTACT.email}?subject=${encodeURIComponent(`TurnedToons request — ${form.type}`)}&body=${encodeURIComponent(message)}`;
+  const mailHref = `mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+
+  const openMailApp = () => { window.location.href = mailHref; setStatus("mailto"); };
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!CONTACT.web3formsKey) return openMailApp();
+    const botcheck = (e.currentTarget.elements.namedItem("botcheck") as HTMLInputElement | null)?.checked;
+    if (botcheck) return;
+    setStatus("sending");
+    try {
+      const res = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          access_key: CONTACT.web3formsKey,
+          subject,
+          from_name: "TurnedToons website",
+          name: form.name,
+          email: form.email,
+          replyto: form.email,
+          "Toon type": form.type,
+          "People & pets": form.people,
+          message: form.idea || "(no idea given)",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.message || "Send failed");
+      setStatus("sent");
+      setForm({ name: "", email: "", type: form.type, people: "", idea: "" });
+    } catch {
+      setStatus("error");
+    }
+  };
 
   const rows = [
     { href: `mailto:${CONTACT.email}`, icon: <Mail />, bg: "var(--yellow)", label: "Email", value: CONTACT.email },
@@ -170,11 +204,18 @@ export function Contact() {
               </address>
             </div>
 
-            <form className="form" onSubmit={(e) => { e.preventDefault(); window.location.href = mailHref; setSent(true); }}>
+            <form className="form" onSubmit={onSubmit}>
               <h3>Quick request</h3>
-              <div className="field">
-                <label htmlFor="f-name">Your name</label>
-                <input id="f-name" required autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Sarah" />
+              <input type="checkbox" name="botcheck" tabIndex={-1} autoComplete="off" aria-hidden style={{ display: "none" }} />
+              <div className="form-row">
+                <div className="field">
+                  <label htmlFor="f-name">Your name</label>
+                  <input id="f-name" required autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Sarah" />
+                </div>
+                <div className="field">
+                  <label htmlFor="f-email">Your email</label>
+                  <input id="f-email" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
+                </div>
               </div>
               <div className="form-row">
                 <div className="field">
@@ -193,12 +234,18 @@ export function Contact() {
                 <textarea id="f-idea" value={form.idea} onChange={(e) => setForm({ ...form, idea: e.target.value })} placeholder="Theme, occasion, favourite characters…" />
               </div>
               <div className="form-actions">
-                <button type="submit" className="btn"><Mail /> Send request by email</button>
+                <button type="submit" className="btn" disabled={status === "sending"}>
+                  <Mail /> {status === "sending" ? "Sending…" : "Send request"}
+                </button>
+                {CONTACT.web3formsKey && (
+                  <button type="button" className="btn ghost" onClick={openMailApp}>Open in email app</button>
+                )}
               </div>
-              <p className="form-msg">
-                {sent
-                  ? <>Your email app should open with the request filled in. If it didn&apos;t, write to <strong>{CONTACT.email}</strong>.</>
-                  : <>This opens your email app — attach your photos there. Or email <strong>{CONTACT.email}</strong> directly.</>}
+              <p className="form-msg" role="status" aria-live="polite">
+                {status === "sent" && <>Thanks! Your request is on its way — I&apos;ll reply by email soon. Send your photos to <strong>{CONTACT.email}</strong>.</>}
+                {status === "error" && <>Sorry, that didn&apos;t send. Please try again or email <strong>{CONTACT.email}</strong> directly.</>}
+                {status === "mailto" && <>Your email app should open with the request filled in. If it didn&apos;t, write to <strong>{CONTACT.email}</strong>.</>}
+                {(status === "idle" || status === "sending") && <>After sending, email your photos to <strong>{CONTACT.email}</strong> or DM them on Instagram.</>}
               </p>
             </form>
           </div>
